@@ -7,6 +7,7 @@ Action<HttpClient> configureGemini = client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Gemini:BaseUrl"]!);
     client.DefaultRequestHeaders.Add("x-goog-api-key", builder.Configuration["Gemini:ApiKey"]);
+    client.Timeout = TimeSpan.FromSeconds(30);
 };
 
 builder.Services.AddHttpClient<ILlmClient, GeminiClient>(configureGemini);
@@ -14,6 +15,8 @@ builder.Services.AddHttpClient<IEmbeddingClient, GeminiEmbeddingClient>(configur
 builder.Services.AddSingleton<IVectorStore, InMemoryVectorStore>();
 
 var app = builder.Build();
+
+app.MapGet("/", () => "App is running...");
 
 // (keep your existing /api/test-chat endpoint here)
 
