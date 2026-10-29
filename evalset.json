@@ -1,0 +1,8 @@
+[
+  { "question": "How many vacation days do I get per year?", "answerable": true, "expectedPage": 1, "expectedContains": ["15"] },
+  { "question": "How much paid sick time is allowed?", "answerable": true, "expectedPage": 1, "expectedContains": ["10"] },
+  { "question": "How many casual leaves do employees get?", "answerable": true, "expectedPage": 1, "expectedContains": ["8"] },
+  { "question": "How many festival holidays are there?", "answerable": true, "expectedPage": 1, "expectedContains": ["10"] },
+  { "question": "What is the capital of France?", "answerable": false },
+  { "question": "How do I reset my laptop password?", "answerable": false }
+]
