@@ -1,0 +1,25 @@
+{
+  "name": "PolicyQA.Api",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:10.0",
+  "forwardPorts": [5032],
+  "portsAttributes": {
+    "5032": {
+      "label": "PolicyQA API",
+      "onAutoForward": "notify"
+    }
+  },
+  "secrets": {
+    "Gemini__ApiKey": {
+      "description": "Google Gemini API key (maps to the Gemini:ApiKey configuration value)"
+    }
+  },
+  "postCreateCommand": "dotnet restore",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "humao.rest-client"
+      ]
+    }
+  }
+}
