@@ -6,17 +6,24 @@ public interface IEmbeddingClient
     Task<float[]> EmbedQueryAsync(string text, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Gemini embeddings (gemini-embedding-001).
+/// Documents and questions use different task types (RETRIEVAL_DOCUMENT vs RETRIEVAL_QUERY),
+/// which improves matching between short questions and long passages.
+/// </summary>
 public class GeminiEmbeddingClient(HttpClient http, IConfiguration config) : IEmbeddingClient
 {
+    private const int MaxBatchSize = 100; // API limit per batch call
+
     private readonly string _model = config["Gemini:EmbeddingModel"]!;
-    private readonly int _dims = int.Parse(config["Gemini:EmbeddingDimensions"] ?? "768");
+    private readonly int _dimensions = config.GetValue("Gemini:EmbeddingDimensions", 768);
 
     public async Task<IReadOnlyList<float[]>> EmbedDocumentsAsync(IReadOnlyList<string> texts, CancellationToken ct = default)
     {
-        var results = new List<float[]>();
+        var results = new List<float[]>(texts.Count);
 
-        // LINQ's Chunk() splits our list into batches of 100 per API call
-        foreach (var batch in texts.Chunk(100))
+        // LINQ Chunk() = batches of up to 100 texts per call: fewer round trips, fewer rate-limit hits
+        foreach (var batch in texts.Chunk(MaxBatchSize))
         {
             var body = new
             {
@@ -25,11 +32,11 @@ public class GeminiEmbeddingClient(HttpClient http, IConfiguration config) : IEm
                     model = $"models/{_model}",
                     content = new { parts = new[] { new { text = t } } },
                     taskType = "RETRIEVAL_DOCUMENT",
-                    outputDimensionality = _dims
+                    outputDimensionality = _dimensions
                 })
             };
 
-            using var doc = await PostAsync($"models/{_model}:batchEmbedContents", body, ct);
+            using var doc = await GeminiHttp.PostJsonAsync(http, $"models/{_model}:batchEmbedContents", body, ct);
             results.AddRange(doc.RootElement.GetProperty("embeddings").EnumerateArray().Select(ReadValues));
         }
 
@@ -42,24 +49,13 @@ public class GeminiEmbeddingClient(HttpClient http, IConfiguration config) : IEm
         {
             content = new { parts = new[] { new { text } } },
             taskType = "RETRIEVAL_QUERY",
-            outputDimensionality = _dims
+            outputDimensionality = _dimensions
         };
 
-        using var doc = await PostAsync($"models/{_model}:embedContent", body, ct);
+        using var doc = await GeminiHttp.PostJsonAsync(http, $"models/{_model}:embedContent", body, ct);
         return ReadValues(doc.RootElement.GetProperty("embedding"));
     }
 
-    private async Task<JsonDocument> PostAsync(string path, object body, CancellationToken ct)
-    {
-        using var response = await http.PostAsJsonAsync(path, body, ct);
-        var json = await response.Content.ReadAsStringAsync(ct);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Gemini embedding error {(int)response.StatusCode}: {json}");
-
-        return JsonDocument.Parse(json);
-    }
-
-    private static float[] ReadValues(JsonElement e) =>
-        e.GetProperty("values").EnumerateArray().Select(v => v.GetSingle()).ToArray();
+    private static float[] ReadValues(JsonElement embedding) =>
+        embedding.GetProperty("values").EnumerateArray().Select(v => v.GetSingle()).ToArray();
 }
